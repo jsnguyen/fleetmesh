@@ -1,0 +1,27 @@
+{
+  "ship": {
+    "id": "sensor-ship",
+    "name": "Temperature Server",
+    "tags": ["sensor", "server", "home"]
+  },
+  "telegram": {
+    "botToken": "",
+    "botUsername": "",
+    "allowedChatIds": [123456789],
+    "allowedUserIds": [987654321]
+  },
+  "commands": {
+    "temp": {
+      "script": "./scripts/temp.sh",
+      "timeoutSeconds": 5
+    },
+    "temp_graph": {
+      "script": "./scripts/temp_graph.sh",
+      "timeoutSeconds": 10
+    },
+    "status": {
+      "script": "./scripts/status.sh",
+      "timeoutSeconds": 5
+    }
+  }
+}
