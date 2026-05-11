@@ -5,10 +5,7 @@
     "tags": ["sensor", "server", "home"]
   },
   "telegram": {
-    "botToken": "",
-    "botUsername": "",
-    "allowedChatIds": [123456789],
-    "allowedUserIds": [987654321]
+    "botUsername": ""
   },
   "commands": {
     "temp": {

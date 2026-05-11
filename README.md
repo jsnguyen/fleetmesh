@@ -53,11 +53,43 @@ npm test
 node ./bin/fleetmesh.js --config ./examples/ship.config.json --message "/run @sensor-ship temp"
 ```
 
+## Initialize A Ship
+
+Create a starter config and status script:
+
+```bash
+node ./bin/fleetmesh.js init --id sensor-ship --name "Temperature Server" --tags sensor,server,home
+```
+
+This writes:
+
+```text
+ship.config.json
+scripts/status.sh
+```
+
+Credentials still live outside the repo in `~/.tgcreds.json`.
+
 ## Telegram Run
 
-Copy `examples/ship.config.json`, set `telegram.botToken`,
-`telegram.allowedChatIds`, and `telegram.allowedUserIds`, then run:
+Create `~/.tgcreds.json`:
+
+```json
+{
+  "bot_token": "telegram-bot-token",
+  "user_id": 123456789
+}
+```
+
+Then copy `examples/ship.config.json`, set `telegram.botUsername` if the bot is
+running in a group, and run:
 
 ```bash
 node ./bin/fleetmesh.js --config ./ship.config.json
+```
+
+You can use a different credentials file with:
+
+```bash
+node ./bin/fleetmesh.js --config ./ship.config.json --creds ./local.tgcreds.json
 ```
