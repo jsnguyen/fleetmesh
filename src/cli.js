@@ -1,6 +1,7 @@
 import { addCommand } from "./add-command.js";
 import { loadRuntimeConfig } from "./config.js";
 import { initShip } from "./init.js";
+import { createLogger, nullLogger } from "./logger.js";
 import { writeLaunchAgent, writeSystemdService } from "./service.js";
 import { createReloadingShipAgent, createShipAgent } from "./ship-agent.js";
 import { startTelegramPolling } from "./telegram.js";
@@ -68,11 +69,13 @@ export async function main(argv) {
   const loadConfig = () => loadRuntimeConfig(configPath, { credentialsPath });
   const runtime = await loadConfig();
   const config = runtime.config;
+  const logger = onceMessage ? nullLogger : createLogger();
   const agent = onceMessage
-    ? createShipAgent(config, { configDir: runtime.configDir })
+    ? createShipAgent(config, { configDir: runtime.configDir, logger })
     : createReloadingShipAgent(loadConfig, {
         initialConfig: config,
         initialConfigDir: runtime.configDir,
+        logger,
       });
 
   if (onceMessage) {
@@ -94,7 +97,7 @@ export async function main(argv) {
     throw new Error("Missing Telegram bot token. Set telegram.botToken or create ~/.tgcreds.json.");
   }
 
-  await startTelegramPolling(agent, config.telegram.botToken);
+  await startTelegramPolling(agent, config.telegram.botToken, { logger });
 }
 
 function readArg(argv, name) {

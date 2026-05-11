@@ -63,6 +63,8 @@ systemctl status fleetmesh
 journalctl -u fleetmesh -f
 ```
 
+Use `journalctl -u fleetmesh -f -o cat` for cleaner JSON log lines.
+
 Add a command on a ship without restarting the service:
 
 ```bash

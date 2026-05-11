@@ -100,6 +100,12 @@ systemctl status fleetmesh
 journalctl -u fleetmesh -f
 ```
 
+For cleaner FleetMesh logs:
+
+```bash
+journalctl -u fleetmesh -f -o cat
+```
+
 In Telegram:
 
 ```text
@@ -134,6 +140,19 @@ Then check its logs:
 
 ```bash
 ssh romulus 'systemctl status fleetmesh --no-pager && journalctl -u fleetmesh -n 80 --no-pager'
+```
+
+Useful log events:
+
+```text
+telegram_polling_started
+telegram_message_received
+telegram_replies_prepared
+message_unauthorized
+command_received
+script_start
+script_finish
+telegram_reply_sent
 ```
 
 ## Add A Command

@@ -13,6 +13,7 @@
     fleetmesh_ship_name: "{{ inventory_hostname | title }}"
     fleetmesh_bot_username: "{{ fleetmesh_ship_id }}_ship_bot"
     fleetmesh_node_bin: /usr/bin/env node
+    fleetmesh_log_level: info
     fleetmesh_telegram_user_id: ""
     fleetmesh_telegram_chat_id: ""
     fleetmesh_bot_tokens: {}
@@ -134,6 +135,7 @@
           Type=simple
           User={{ fleetmesh_user }}
           WorkingDirectory={{ fleetmesh_dir }}
+          Environment=FLEETMESH_LOG_LEVEL={{ fleetmesh_log_level }}
           ExecStart={{ fleetmesh_node_bin }} {{ fleetmesh_dir }}/bin/fleetmesh.js --config {{ fleetmesh_config_dir }}/ship.config.json --creds {{ fleetmesh_config_dir }}/.tgcreds.json
           Restart=always
           RestartSec=5

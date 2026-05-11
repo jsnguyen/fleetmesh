@@ -20,11 +20,12 @@ test("reloading agent picks up commands added after startup", async () => {
     { runner },
   );
 
-  assert.deepEqual(await agent.handleText({
+  const unsupported = await agent.handleText({
     text: "/run @ship-one temp",
     chatId: 1,
     userId: 2,
-  }), []);
+  });
+  assert.match(unsupported[0].text, /Unsupported command/);
 
   await addCommand({ configPath, name: "temp" });
   const replies = await agent.handleText({

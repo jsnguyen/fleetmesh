@@ -1,17 +1,19 @@
 import { spawn } from "node:child_process";
 import { access } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
+import { nullLogger } from "./logger.js";
 
-export function createScriptRunner({ configDir = process.cwd() } = {}) {
+export function createScriptRunner({ configDir = process.cwd(), logger = nullLogger } = {}) {
   return {
     run(command, args = []) {
-      return runScript(command, args, configDir);
+      return runScript(command, args, configDir, logger);
     },
   };
 }
 
-export async function runScript(command, args, configDir) {
+export async function runScript(command, args, configDir, logger = nullLogger) {
   if (!command?.script) {
+    logger.warn("script_missing_config");
     return { ok: false, exitCode: 1, stderr: "Command has no script configured." };
   }
 
@@ -21,10 +23,18 @@ export async function runScript(command, args, configDir) {
   try {
     await access(scriptPath);
   } catch {
+    logger.warn("script_not_found", { scriptPath });
     return { ok: false, exitCode: 127, stderr: `Script not found: ${scriptPath}` };
   }
 
   return new Promise((resolveResult) => {
+    const startedAt = Date.now();
+    logger.info("script_start", {
+      scriptPath,
+      argCount: args.length,
+      timeoutSeconds: command.timeoutSeconds ?? 30,
+    });
+
     const child = spawn(scriptPath, args, {
       cwd: dirname(scriptPath),
       env: { ...process.env },
@@ -39,6 +49,11 @@ export async function runScript(command, args, configDir) {
       if (settled) return;
       settled = true;
       child.kill("SIGTERM");
+      logger.warn("script_timeout", {
+        scriptPath,
+        durationMs: Date.now() - startedAt,
+        timeoutSeconds: command.timeoutSeconds ?? 30,
+      });
       resolveResult({
         ok: false,
         exitCode: null,
@@ -59,6 +74,10 @@ export async function runScript(command, args, configDir) {
       if (settled) return;
       settled = true;
       clearTimeout(timer);
+      logger.error("script_spawn_error", {
+        scriptPath,
+        error: error.message,
+      });
       resolveResult({ ok: false, exitCode: 1, stdout, stderr: error.message });
     });
     child.on("close", (exitCode) => {
@@ -66,6 +85,13 @@ export async function runScript(command, args, configDir) {
       settled = true;
       clearTimeout(timer);
       const output = parseCommandOutput(stdout, dirname(scriptPath));
+      logger.info("script_finish", {
+        scriptPath,
+        exitCode,
+        durationMs: Date.now() - startedAt,
+        stdoutBytes: Buffer.byteLength(stdout),
+        stderrBytes: Buffer.byteLength(stderr),
+      });
       resolveResult({
         ok: exitCode === 0,
         exitCode,
