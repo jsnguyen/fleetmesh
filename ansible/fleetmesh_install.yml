@@ -22,7 +22,7 @@
       - name: status
         script: "{{ fleetmesh_dir }}/skills/all/status.sh"
         timeout: 5
-      - name: latest_temp
+      - name: temps
         script: "{{ fleetmesh_dir }}/skills/romulus/latest_temp.py"
         timeout: 10
         ship: romulus

@@ -190,7 +190,7 @@ The installer and updater register built-in skills automatically.
 Romulus has a temperature skill that reads the local SDR temperature web server:
 
 ```text
-/run @romulus latest_temp
+/run @romulus temps
 ```
 
 By default it calls:

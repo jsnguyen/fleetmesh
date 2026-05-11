@@ -1,9 +1,7 @@
 import { resolve } from "node:path";
 
 export function formatCommandSuccess(ship, commandName, output) {
-  const text = output.text?.trim()
-    ? `${ship.name} / ${commandName}\n${output.text.trim()}`
-    : `${ship.name} / ${commandName}\nDone.`;
+  const text = output.text?.trim() ? output.text.trim() : "Done.";
 
   return {
     text,

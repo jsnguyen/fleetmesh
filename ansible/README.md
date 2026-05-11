@@ -84,7 +84,7 @@ skills/romulus/latest_temp.py
 Romulus temperature command:
 
 ```text
-/run @romulus latest_temp
+/run @romulus temps
 ```
 
 Edit the vault later with:
