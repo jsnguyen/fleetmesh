@@ -1,0 +1,37 @@
+---
+- name: Update FleetMesh
+  hosts: homelab
+  gather_facts: true
+
+  vars:
+    fleetmesh_repo_url: ""
+    fleetmesh_repo_version: main
+    fleetmesh_dir: "{{ ansible_facts.user_dir }}/fleetmesh"
+
+  tasks:
+    - name: Validate FleetMesh update variables
+      ansible.builtin.assert:
+        that:
+          - fleetmesh_repo_url | length > 0
+        fail_msg: "Pass fleetmesh_repo_url with Ansible Vault, for example: -e @fleetmesh.vault.yml --ask-vault-pass"
+
+    - name: Update FleetMesh repository
+      ansible.builtin.git:
+        repo: "{{ fleetmesh_repo_url }}"
+        dest: "{{ fleetmesh_dir }}"
+        version: "{{ fleetmesh_repo_version }}"
+        update: true
+        force: false
+      register: fleetmesh_update
+      notify: Restart FleetMesh
+
+    - name: Show checked out revision
+      ansible.builtin.debug:
+        msg: "FleetMesh on {{ inventory_hostname }} is at {{ fleetmesh_update.after }}"
+
+  handlers:
+    - name: Restart FleetMesh
+      ansible.builtin.systemd:
+        name: fleetmesh.service
+        state: restarted
+      become: true

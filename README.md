@@ -113,6 +113,29 @@ To find the group chat id, temporarily run one bot, send a message in the group,
 and check `journalctl -u fleetmesh -f` if authorization fails. Telegram group ids
 are usually negative numbers, often starting with `-100`.
 
+## Update FleetMesh
+
+After pushing changes to the FleetMesh git repo, update the ships with:
+
+```bash
+ansible-playbook -i /path/to/inventory.ini ansible/fleetmesh_update.yml -e @ansible/fleetmesh.vault.yml --ask-vault-pass
+```
+
+This pulls the repo on each ship and restarts `fleetmesh.service` only when the
+checkout changes.
+
+If one ship is not responding after a code change, update it first:
+
+```bash
+ansible-playbook -i /path/to/inventory.ini ansible/fleetmesh_update.yml -e @ansible/fleetmesh.vault.yml --ask-vault-pass --limit romulus
+```
+
+Then check its logs:
+
+```bash
+ssh romulus 'systemctl status fleetmesh --no-pager && journalctl -u fleetmesh -n 80 --no-pager'
+```
+
 ## Add A Command
 
 Add a command on a ship:

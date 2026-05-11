@@ -49,7 +49,7 @@ test("uses user id as default allowed user and direct chat", async () => {
   assert.deepEqual(config.telegram.allowedChatIds, [123]);
 });
 
-test("uses chat id for group authorization when present", async () => {
+test("allows both direct chat and group chat when chat id is present", async () => {
   const dir = await mkdtemp(join(tmpdir(), "fleetmesh-creds-"));
   const path = join(dir, ".tgcreds.json");
   await writeFile(path, JSON.stringify({ bot_token: "token", user_id: 123, chat_id: -100456 }));
@@ -58,15 +58,15 @@ test("uses chat id for group authorization when present", async () => {
 
   assert.equal(config.telegram.botToken, "token");
   assert.deepEqual(config.telegram.allowedUserIds, [123]);
-  assert.deepEqual(config.telegram.allowedChatIds, [-100456]);
+  assert.deepEqual(config.telegram.allowedChatIds, [123, -100456]);
 });
 
-test("uses chat ids array for multiple authorized chats", async () => {
+test("allows direct chat and multiple group chats when chat ids are present", async () => {
   const dir = await mkdtemp(join(tmpdir(), "fleetmesh-creds-"));
   const path = join(dir, ".tgcreds.json");
   await writeFile(path, JSON.stringify({ bot_token: "token", user_id: 123, chat_ids: [-100456, "789"] }));
 
   const config = await applyTelegramCredentials({ telegram: {} }, { credentialsPath: path });
 
-  assert.deepEqual(config.telegram.allowedChatIds, [-100456, 789]);
+  assert.deepEqual(config.telegram.allowedChatIds, [123, -100456, 789]);
 });

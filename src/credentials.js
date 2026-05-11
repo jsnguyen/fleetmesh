@@ -27,10 +27,14 @@ export async function applyTelegramCredentials(config, options = {}) {
   }
 
   if (!Array.isArray(nextTelegram.allowedChatIds) || nextTelegram.allowedChatIds.length === 0) {
+    const allowedChatIds = [];
+    if (userId !== undefined) allowedChatIds.push(userId);
     if (chatIds.length > 0) {
-      nextTelegram.allowedChatIds = chatIds;
-    } else if (userId !== undefined) {
-      nextTelegram.allowedChatIds = [userId];
+      allowedChatIds.push(...chatIds);
+    }
+
+    if (allowedChatIds.length > 0) {
+      nextTelegram.allowedChatIds = [...new Set(allowedChatIds)];
     }
   }
 

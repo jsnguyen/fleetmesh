@@ -6,9 +6,9 @@
   vars:
     fleetmesh_repo_url: ""
     fleetmesh_repo_version: main
-    fleetmesh_dir: "{{ ansible_user_dir }}/fleetmesh"
+    fleetmesh_dir: "{{ ansible_facts.user_dir }}/fleetmesh"
     fleetmesh_config_dir: /etc/fleetmesh
-    fleetmesh_user: "{{ ansible_user_id }}"
+    fleetmesh_user: "{{ ansible_facts.user_id }}"
     fleetmesh_ship_id: "{{ inventory_hostname | lower }}"
     fleetmesh_ship_name: "{{ inventory_hostname | title }}"
     fleetmesh_bot_username: "{{ fleetmesh_ship_id }}_ship_bot"

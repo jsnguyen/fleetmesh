@@ -1,6 +1,8 @@
 # FleetMesh Ansible
 
 `fleetmesh_install.yml` deploys FleetMesh to Linux/systemd ships.
+`fleetmesh_update.yml` pulls updates and restarts the service when the checkout
+changes.
 
 The installer is one YAML file. It clones the FleetMesh git repo into the
 SSH/deploy user's home directory and runs the systemd service as that same user.
@@ -74,4 +76,16 @@ Edit the vault later with:
 
 ```bash
 ansible-vault edit fleetmesh.vault.yml
+```
+
+Update FleetMesh after pushing repo changes:
+
+```bash
+ansible-playbook -i /path/to/inventory.ini fleetmesh_update.yml -e @fleetmesh.vault.yml --ask-vault-pass
+```
+
+Update only one ship:
+
+```bash
+ansible-playbook -i /path/to/inventory.ini fleetmesh_update.yml -e @fleetmesh.vault.yml --ask-vault-pass --limit romulus
 ```
