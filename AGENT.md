@@ -144,7 +144,7 @@ journalctl -u fleetmesh -f
 
 ## Deployment Notes
 
-Romulus and Vulcan are managed by the Ansible playbook in `ansible/`.
+Romulus and Vulcan are managed by `ansible/fleetmesh_install.yml`.
 
 The playbook creates `ship.config.json` and the default `status.sh` only if
 missing, so commands added directly on a ship are not overwritten by later

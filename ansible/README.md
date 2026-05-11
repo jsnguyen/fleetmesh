@@ -1,52 +1,43 @@
 # FleetMesh Ansible
 
-This deploys Romulus and Vulcan as Linux/systemd FleetMesh ships. Linux is the
-primary FleetMesh deployment target.
+`fleetmesh_install.yml` deploys FleetMesh to Linux/systemd ships.
 
-The playbook is portable: it does not copy FleetMesh from the Ansible checkout.
-Each ship clones the FleetMesh git repo into the SSH/deploy user's home
-directory and runs the systemd service as that same user. It does not create a
-dedicated `fleetmesh` service user.
+The installer is one YAML file. It clones the FleetMesh git repo into the
+SSH/deploy user's home directory and runs the systemd service as that same user.
 
-Edit `inventory.ini` first:
+Use your existing inventory:
 
 ```ini
-[fleetmesh]
-Romulus ansible_host=romulus.local
-Vulcan ansible_host=vulcan.local
+[homelab]
+vulcan  ansible_user=jsn ansible_python_interpreter=/usr/bin/python3
+romulus ansible_user=jsn ansible_python_interpreter=/usr/bin/python3
 ```
 
-Put secrets in Ansible Vault:
+Create a vault file for FleetMesh variables:
 
 ```bash
-mkdir -p group_vars/all
-ansible-vault create group_vars/all/vault.yml
+cd ansible
+ansible-vault create fleetmesh.vault.yml
 ```
 
-Example vault contents:
-
-```yaml
-vault_telegram_user_id: 123456789
-vault_romulus_bot_token: "telegram-token-for-romulus"
-vault_vulcan_bot_token: "telegram-token-for-vulcan"
-```
-
-Set your repo URL in `group_vars/fleetmesh.yml`:
+Vault contents:
 
 ```yaml
 fleetmesh_repo_url: "git@github.com:YOUR_ORG_OR_USER/fleetmesh.git"
 fleetmesh_repo_version: main
+fleetmesh_telegram_user_id: 123456789
+fleetmesh_bot_tokens:
+  romulus: "telegram-token-for-romulus"
+  vulcan: "telegram-token-for-vulcan"
 ```
 
-Ship id, ship name, and bot username are derived from the inventory hostname by
-default. For `Romulus`, that means `romulus`, `Romulus`, and
-`romulus_ship_bot`.
+Ship id, ship name, and bot username are derived from the inventory hostname.
+For `romulus`, that means `romulus`, `Romulus`, and `romulus_ship_bot`.
 
 Deploy:
 
 ```bash
-cd ansible
-ansible-playbook deploy.yml --ask-vault-pass
+ansible-playbook -i /path/to/inventory.ini fleetmesh_install.yml -e @fleetmesh.vault.yml --ask-vault-pass
 ```
 
 The playbook installs:
@@ -77,3 +68,9 @@ ${EDITOR:-vi} /etc/fleetmesh/scripts/temp.sh
 ```
 
 The running service reloads config on every Telegram message.
+
+Edit the vault later with:
+
+```bash
+ansible-vault edit fleetmesh.vault.yml
+```

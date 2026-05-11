@@ -1,29 +1,126 @@
 # FleetMesh
 
-FleetMesh is a controllerless Telegram command mesh. Each computer runs a small
-agent and is called a **ship**. Ships listen in a Telegram fleet channel, decide
-whether an order applies to them, run allowlisted local scripts, and reply.
+FleetMesh is a controllerless Telegram command mesh. Each computer is a
+**ship**. A ship runs a small Linux/systemd service, listens for Telegram
+commands, runs allowlisted local scripts, and replies with the output.
 
 ```text
-Telegram Fleet Channel
+Telegram group
    |
-   |-- Ship: macbook
-   |-- Ship: workstation
-   |-- Ship: sensor-ship
+   |-- romulus
+   |-- vulcan
 ```
 
-## Commands
+## Install Path
+
+This is the normal path for adding a new FleetMesh process to Linux machines.
+
+### 1. Create Telegram Bots
+
+Create one Telegram bot per ship with `@BotFather`.
+
+For the default homelab setup:
+
+```text
+romulus -> romulus_ship_bot
+vulcan  -> vulcan_ship_bot
+```
+
+Add both bots to one private Telegram group. If you want broadcast commands like
+`/run status` to be seen by all bots, turn off each bot's group privacy in
+BotFather.
+
+### 2. Prepare Inventory
+
+Use your existing Ansible inventory:
+
+```ini
+[homelab]
+vulcan  ansible_user=jsn ansible_python_interpreter=/usr/bin/python3
+romulus ansible_user=jsn ansible_python_interpreter=/usr/bin/python3
+```
+
+FleetMesh derives ship settings from the inventory hostname:
+
+```text
+romulus -> ship id romulus, ship name Romulus, bot username romulus_ship_bot
+vulcan  -> ship id vulcan,  ship name Vulcan,  bot username vulcan_ship_bot
+```
+
+### 3. Create The Vault
+
+Create a vault file beside the installer:
+
+```bash
+cd ansible
+ansible-vault create fleetmesh.vault.yml
+```
+
+Vault contents:
+
+```yaml
+fleetmesh_repo_url: "git@github.com:YOUR_ORG_OR_USER/fleetmesh.git"
+fleetmesh_repo_version: main
+fleetmesh_telegram_user_id: 123456789
+fleetmesh_bot_tokens:
+  romulus: "telegram-token-for-romulus"
+  vulcan: "telegram-token-for-vulcan"
+```
+
+Edit it later with:
+
+```bash
+ansible-vault edit fleetmesh.vault.yml
+```
+
+### 4. Install FleetMesh
+
+Run the single-file installer:
+
+```bash
+ansible-playbook -i /path/to/inventory.ini ansible/fleetmesh_install.yml -e @ansible/fleetmesh.vault.yml --ask-vault-pass
+```
+
+The installer:
+
+- clones the repo to `~/fleetmesh` on each ship
+- writes `/etc/fleetmesh/ship.config.json`
+- writes `/etc/fleetmesh/.tgcreds.json`
+- writes `/etc/fleetmesh/scripts/status.sh`
+- installs and starts `fleetmesh.service`
+- enables the service at boot
+
+### 5. Verify
+
+On a ship:
+
+```bash
+systemctl status fleetmesh
+journalctl -u fleetmesh -f
+```
+
+In Telegram:
 
 ```text
 /fleet
 /commands
 /run status
-/run @sensor-ship temp
+/run @romulus status
 ```
 
-`/run status` is a broadcast. Every ship that supports `status` replies.
+## Add A Command
 
-For instructions on writing new ship commands, see `AGENT.md`.
+Add a command on a ship:
+
+```bash
+node ~/fleetmesh/bin/fleetmesh.js add-command temp --config /etc/fleetmesh/ship.config.json --timeout 5
+${EDITOR:-vi} /etc/fleetmesh/scripts/temp.sh
+```
+
+The running service reloads config on every Telegram message, so no restart is
+needed.
+
+For command-writing rules, see `AGENT.md`.
 
 ## Command Output
 
@@ -33,7 +130,7 @@ Scripts can print plain text:
 echo "Current: 72.4 F"
 ```
 
-Or minimal JSON:
+Or minimal JSON with attachments:
 
 ```json
 {
@@ -44,89 +141,19 @@ Or minimal JSON:
 }
 ```
 
-If stdout is JSON with `text`, FleetMesh sends that text and uploads any
-attachments. Otherwise, stdout is sent as plain text. Exit code decides success.
+If stdout is JSON with `text`, FleetMesh sends `text` and uploads attachments.
+Otherwise, stdout is sent as plain text. Exit code decides success or failure.
 
-## Local Test Run
+## Local Development
+
+Run tests:
 
 ```bash
 npm test
+```
+
+Run a local command path:
+
+```bash
 node ./bin/fleetmesh.js --config ./examples/ship.config.json --message "/run @sensor-ship temp"
-```
-
-## Initialize A Ship
-
-Create a starter config and status script:
-
-```bash
-node ./bin/fleetmesh.js init --id sensor-ship --name "Temperature Server"
-```
-
-This writes:
-
-```text
-ship.config.json
-scripts/status.sh
-```
-
-Credentials still live outside the repo in `~/.tgcreds.json`.
-
-Add a command while the ship service is already running:
-
-```bash
-node ./bin/fleetmesh.js add-command temp --config ./ship.config.json --timeout 5
-```
-
-This updates `ship.config.json` and creates `scripts/temp.sh` if it does not
-exist. The running ship reloads config for every Telegram message, so no restart
-is needed.
-
-## Background Service
-
-Linux/systemd is the primary deployment target.
-
-For Romulus and Vulcan, use the Ansible playbook in `ansible/`. It installs
-FleetMesh as a systemd service named `fleetmesh.service` and enables it at boot.
-
-For a single Linux ship, generate a systemd unit locally:
-
-```bash
-sudo node ./bin/fleetmesh.js service install --config /etc/fleetmesh/ship.config.json --creds /etc/fleetmesh/.tgcreds.json --name fleetmesh
-```
-
-Then start it:
-
-```bash
-sudo systemctl daemon-reload
-sudo systemctl enable --now fleetmesh.service
-```
-
-Logs are available with:
-
-```bash
-journalctl -u fleetmesh -f
-```
-
-## Telegram Run
-
-Create `~/.tgcreds.json`:
-
-```json
-{
-  "bot_token": "telegram-bot-token",
-  "user_id": 123456789
-}
-```
-
-Then copy `examples/ship.config.json`, set `telegram.botUsername` if the bot is
-running in a group, and run:
-
-```bash
-node ./bin/fleetmesh.js --config ./ship.config.json
-```
-
-You can use a different credentials file with:
-
-```bash
-node ./bin/fleetmesh.js --config ./ship.config.json --creds ./local.tgcreds.json
 ```

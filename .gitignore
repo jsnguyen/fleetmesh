@@ -3,6 +3,4 @@
 .tgcreds.json
 *.tgcreds.json
 node_modules/
-ansible/group_vars/vault.yml
-ansible/group_vars/all/vault.yml
-ansible/host_vars/*vault*.yml
+ansible/*.vault.yml
