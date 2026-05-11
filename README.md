@@ -175,6 +175,33 @@ needed.
 
 For command-writing rules, see `AGENT.md`.
 
+## Built-In Skills
+
+Repo-managed skills live under:
+
+```text
+skills/all/
+skills/romulus/
+skills/vulcan/
+```
+
+The installer and updater register built-in skills automatically.
+
+Romulus has a temperature skill that reads the local SDR temperature web server:
+
+```text
+/run @romulus latest_temp
+```
+
+By default it calls:
+
+```text
+http://127.0.0.1:8433/temps
+```
+
+Override that endpoint in the service environment with `FLEETMESH_TEMPS_URL` if
+needed.
+
 ## Command Output
 
 Scripts can print plain text:

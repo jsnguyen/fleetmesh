@@ -18,6 +18,14 @@
     fleetmesh_telegram_chat_id: ""
     fleetmesh_bot_tokens: {}
     fleetmesh_telegram_bot_token: "{{ fleetmesh_bot_tokens[fleetmesh_ship_id] | default('') }}"
+    fleetmesh_builtin_skills:
+      - name: status
+        script: "{{ fleetmesh_dir }}/skills/all/status.sh"
+        timeout: 5
+      - name: latest_temp
+        script: "{{ fleetmesh_dir }}/skills/romulus/latest_temp.py"
+        timeout: 10
+        ship: romulus
 
   tasks:
     - name: Validate FleetMesh variables
@@ -64,6 +72,11 @@
         update: true
         force: false
       notify: Restart FleetMesh
+
+    - name: Make FleetMesh skill scripts executable
+      ansible.builtin.shell: |
+        find "{{ fleetmesh_dir }}/skills" -type f \( -name '*.sh' -o -name '*.py' \) -exec chmod 0755 {} +
+      changed_when: false
 
     - name: Install ship config
       ansible.builtin.copy:
@@ -118,6 +131,24 @@
           echo "Host: $(hostname)"
           echo "Uptime: $(uptime)"
       become: true
+
+    - name: Register built-in FleetMesh skills
+      ansible.builtin.command:
+        argv:
+          - node
+          - "{{ fleetmesh_dir }}/bin/fleetmesh.js"
+          - add-command
+          - "{{ item.name }}"
+          - --config
+          - "{{ fleetmesh_config_dir }}/ship.config.json"
+          - --script
+          - "{{ item.script }}"
+          - --timeout
+          - "{{ item.timeout | string }}"
+          - --force
+      loop: "{{ fleetmesh_builtin_skills }}"
+      when: item.ship is not defined or item.ship == fleetmesh_ship_id
+      changed_when: false
 
     - name: Install systemd unit
       ansible.builtin.copy:

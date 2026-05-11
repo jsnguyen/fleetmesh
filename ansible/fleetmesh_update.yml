@@ -7,6 +7,16 @@
     fleetmesh_repo_url: ""
     fleetmesh_repo_version: main
     fleetmesh_dir: "{{ ansible_facts.user_dir }}/fleetmesh"
+    fleetmesh_config_dir: /etc/fleetmesh
+    fleetmesh_ship_id: "{{ inventory_hostname | lower }}"
+    fleetmesh_builtin_skills:
+      - name: status
+        script: "{{ fleetmesh_dir }}/skills/all/status.sh"
+        timeout: 5
+      - name: latest_temp
+        script: "{{ fleetmesh_dir }}/skills/romulus/latest_temp.py"
+        timeout: 10
+        ship: romulus
 
   tasks:
     - name: Validate FleetMesh update variables
@@ -24,6 +34,29 @@
         force: false
       register: fleetmesh_update
       notify: Restart FleetMesh
+
+    - name: Make FleetMesh skill scripts executable
+      ansible.builtin.shell: |
+        find "{{ fleetmesh_dir }}/skills" -type f \( -name '*.sh' -o -name '*.py' \) -exec chmod 0755 {} +
+      changed_when: false
+
+    - name: Register built-in FleetMesh skills
+      ansible.builtin.command:
+        argv:
+          - node
+          - "{{ fleetmesh_dir }}/bin/fleetmesh.js"
+          - add-command
+          - "{{ item.name }}"
+          - --config
+          - "{{ fleetmesh_config_dir }}/ship.config.json"
+          - --script
+          - "{{ item.script }}"
+          - --timeout
+          - "{{ item.timeout | string }}"
+          - --force
+      loop: "{{ fleetmesh_builtin_skills }}"
+      when: item.ship is not defined or item.ship == fleetmesh_ship_id
+      changed_when: false
 
     - name: Show checked out revision
       ansible.builtin.debug:

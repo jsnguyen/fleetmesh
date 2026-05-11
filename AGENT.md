@@ -36,6 +36,18 @@ node ./bin/fleetmesh.js add-command temp --config ./ship.config.json --timeout 5
 
 This updates `ship.config.json` and creates `scripts/temp.sh` if missing.
 
+Repo-managed skills live under:
+
+```text
+skills/all/
+skills/romulus/
+skills/vulcan/
+```
+
+Use `skills/all` for commands shared by every ship. Use a ship-specific folder
+for commands that only make sense on that machine. The Ansible install/update
+playbooks register built-in skills automatically.
+
 On a deployed Linux ship, the normal paths are:
 
 ```bash
@@ -146,8 +158,8 @@ journalctl -u fleetmesh -f
 
 Romulus and Vulcan are managed by `ansible/fleetmesh_install.yml`.
 
-The playbook creates `ship.config.json` and the default `status.sh` only if
-missing, so commands added directly on a ship are not overwritten by later
-deploys.
+The playbook creates `ship.config.json` only if missing and registers built-in
+repo skills with `fleetmesh add-command --force`. Commands added directly on a
+ship are preserved unless they use the same command name as a built-in skill.
 
 Keep secrets in Ansible Vault, not in repo files.

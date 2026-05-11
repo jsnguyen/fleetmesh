@@ -74,6 +74,19 @@ ${EDITOR:-vi} /etc/fleetmesh/scripts/temp.sh
 
 The running service reloads config on every Telegram message.
 
+Built-in repo skills are registered by install/update:
+
+```text
+skills/all/status.sh
+skills/romulus/latest_temp.py
+```
+
+Romulus temperature command:
+
+```text
+/run @romulus latest_temp
+```
+
 Edit the vault later with:
 
 ```bash
