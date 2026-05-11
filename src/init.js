@@ -1,4 +1,4 @@
-import { access, chmod, mkdir, writeFile } from "node:fs/promises";
+import { access, chmod, mkdir, readFile, writeFile } from "node:fs/promises";
 import { hostname } from "node:os";
 import { dirname, resolve } from "node:path";
 
@@ -21,7 +21,7 @@ export async function initShip(options = {}) {
   }), null, 2)}\n`);
 
   if (options.force || !await exists(statusScriptPath)) {
-    await writeFile(statusScriptPath, statusScript());
+    await writeFile(statusScriptPath, await statusScript());
     await chmod(statusScriptPath, 0o755);
   }
 
@@ -62,13 +62,8 @@ export function sanitizeShipId(value) {
     .replace(/^-+|-+$/g, "");
 }
 
-function statusScript() {
-  return `#!/usr/bin/env bash
-set -euo pipefail
-
-echo "Host: $(hostname)"
-echo "Uptime: $(uptime)"
-`;
+async function statusScript() {
+  return readFile(new URL("../skills/all/status.sh", import.meta.url), "utf8");
 }
 
 async function exists(path) {

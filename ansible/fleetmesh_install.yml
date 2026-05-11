@@ -119,17 +119,12 @@
 
     - name: Install default status command
       ansible.builtin.copy:
+        src: "{{ fleetmesh_dir }}/skills/all/status.sh"
         dest: "{{ fleetmesh_config_dir }}/scripts/status.sh"
+        remote_src: true
         owner: "{{ fleetmesh_user }}"
         mode: "0750"
         force: false
-        content: |
-          #!/usr/bin/env bash
-          set -euo pipefail
-
-          echo "Ship: {{ fleetmesh_ship_name }}"
-          echo "Host: $(hostname)"
-          echo "Uptime: $(uptime)"
       become: true
 
     - name: Register built-in FleetMesh skills

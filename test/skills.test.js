@@ -5,6 +5,25 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
+test("status skill reports compact system health", async () => {
+  const result = await run("skills/all/status.sh", [], {
+    FLEETMESH_SHIP_NAME: "Test Ship",
+  });
+
+  assert.equal(result.exitCode, 0);
+  assert.equal(result.stderr, "");
+  assert.match(result.stdout, /^```/);
+  assert.match(result.stdout, /Test Ship/);
+  assert.match(result.stdout, /^IP\s+/m);
+  assert.match(result.stdout, /^Uptime\s+/m);
+  assert.match(result.stdout, /^CPU\s+(unknown|[0-9]+% used|[0-9]+% load)/m);
+  assert.doesNotMatch(result.stdout, /^CPU\s+[0-9.]+ [0-9.]+ [0-9.]+ load/m);
+  assert.match(result.stdout, /^RAM\s+/m);
+  assert.match(result.stdout, /^Storage\s+/m);
+  assert.match(result.stdout, /```\s*$/);
+  assert.doesNotMatch(result.stdout, /^Host:/m);
+});
+
 test("romulus temps skill formats latest readings in room order", async () => {
   const dir = await mkdtemp(join(tmpdir(), "fleetmesh-skill-"));
   const tempsPath = join(dir, "temps.json");
@@ -31,11 +50,13 @@ test("romulus temps skill formats latest readings in room order", async () => {
   });
 
   assert.equal(result.exitCode, 0);
-  assert.match(result.stdout, /🌡️ Temps — 2026-05-11/);
-  assert.match(result.stdout, /🛏️ Bedroom: 71\.2°F  44%/);
-  assert.match(result.stdout, /🛋️ Living Room: 70\.0°F  40%/);
-  assert.match(result.stdout, /🛠️ Garage: 66\.0°F/);
-  assert.match(result.stdout, /🕒 Bedroom 01:00, Living Room 01:01, Garage 01:02/);
+  assert.match(result.stdout, /^```/);
+  assert.match(result.stdout, /2026-05-11, 1:02AM, /);
+  assert.match(result.stdout, /🔴 🛏️ Bedroom\s+71\.2°F\s+44%/);
+  assert.match(result.stdout, /🔴 🛋️ Living Room\s+70\.0°F\s+40%/);
+  assert.match(result.stdout, /🔴 🛠️ Garage\s+66\.0°F/);
+  assert.doesNotMatch(result.stdout, /Bedroom 01:00/);
+  assert.match(result.stdout, /```\s*$/);
   assert.ok(result.stdout.indexOf("Bedroom") < result.stdout.indexOf("Living Room"));
   assert.ok(result.stdout.indexOf("Living Room") < result.stdout.indexOf("Garage"));
 });

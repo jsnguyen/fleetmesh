@@ -45,7 +45,7 @@ test("initializes config and status script", async () => {
   const config = JSON.parse(await readFile(result.configPath, "utf8"));
   assert.equal(config.ship.id, "sensor-ship");
   assert.equal(config.ship.name, "Temperature Server");
-  assert.match(await readFile(result.statusScriptPath, "utf8"), /uptime/);
+  assert.match(await readFile(result.statusScriptPath, "utf8"), /Storage/);
   assert.equal((await stat(result.statusScriptPath)).mode & 0o111, 0o111);
 });
 

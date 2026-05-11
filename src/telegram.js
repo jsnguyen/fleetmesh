@@ -109,10 +109,7 @@ async function resolveAgentConfig(agent) {
 }
 
 async function sendReply(botToken, chat, reply, logger) {
-  await telegramRequest(botToken, "sendMessage", {
-    chat_id: chat.id,
-    text: reply.text.slice(0, 3900),
-  });
+  await telegramRequest(botToken, "sendMessage", buildSendMessagePayload(chat.id, reply.text));
   logger.info("telegram_reply_sent", {
     chatId: chat.id,
     chatType: chat.type,
@@ -125,6 +122,25 @@ async function sendReply(botToken, chat, reply, logger) {
   for (const attachment of reply.attachments ?? []) {
     await sendAttachment(botToken, chat.id, attachment, logger);
   }
+}
+
+export function buildSendMessagePayload(chatId, text) {
+  const messageText = text.slice(0, 3900);
+  const payload = {
+    chat_id: chatId,
+    text: messageText,
+  };
+
+  if (isCodeBlock(messageText)) {
+    payload.parse_mode = "Markdown";
+  }
+
+  return payload;
+}
+
+function isCodeBlock(text) {
+  const trimmed = text.trim();
+  return trimmed.startsWith("```") && trimmed.endsWith("```");
 }
 
 async function sendAttachment(botToken, chatId, attachment, logger) {
