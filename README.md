@@ -106,6 +106,10 @@ For cleaner FleetMesh logs:
 journalctl -u fleetmesh -f -o cat
 ```
 
+You should see `telegram_poll_result` every long-poll cycle. If that shows
+`updateCount:0` after you send a group message, Telegram did not deliver that
+message to the bot.
+
 In Telegram:
 
 ```text
@@ -145,7 +149,9 @@ ssh romulus 'systemctl status fleetmesh --no-pager && journalctl -u fleetmesh -n
 Useful log events:
 
 ```text
+runtime_config_loaded
 telegram_polling_started
+telegram_poll_result
 telegram_message_received
 telegram_replies_prepared
 message_unauthorized

@@ -70,6 +70,16 @@ export async function main(argv) {
   const runtime = await loadConfig();
   const config = runtime.config;
   const logger = onceMessage ? nullLogger : createLogger();
+  logger.info("runtime_config_loaded", {
+    configPath: runtime.configPath,
+    configDir: runtime.configDir,
+    credentialsPath: runtime.credentialsPath,
+    shipId: config.ship?.id,
+    botUsername: config.telegram?.botUsername,
+    allowedChatIds: config.telegram?.allowedChatIds,
+    allowedUserIds: config.telegram?.allowedUserIds,
+    commandNames: Object.keys(config.commands ?? {}).sort(),
+  });
   const agent = onceMessage
     ? createShipAgent(config, { configDir: runtime.configDir, logger })
     : createReloadingShipAgent(loadConfig, {

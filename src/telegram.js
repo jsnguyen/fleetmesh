@@ -29,6 +29,11 @@ export async function startTelegramPolling(agent, botToken, options = {}) {
       continue;
     }
 
+    logger.info("telegram_poll_result", {
+      offset,
+      updateCount: updates.result?.length ?? 0,
+    });
+
     for (const update of updates.result ?? []) {
       offset = Math.max(offset, update.update_id + 1);
       const message = update.message;
