@@ -19,10 +19,11 @@ Telegram Fleet Channel
 /commands
 /run status
 /run @sensor-ship temp
-/run tag:sensor temp_graph
 ```
 
 `/run status` is a broadcast. Every ship that supports `status` replies.
+
+For instructions on writing new ship commands, see `AGENT.md`.
 
 ## Command Output
 
@@ -58,7 +59,7 @@ node ./bin/fleetmesh.js --config ./examples/ship.config.json --message "/run @se
 Create a starter config and status script:
 
 ```bash
-node ./bin/fleetmesh.js init --id sensor-ship --name "Temperature Server" --tags sensor,server,home
+node ./bin/fleetmesh.js init --id sensor-ship --name "Temperature Server"
 ```
 
 This writes:
@@ -69,6 +70,42 @@ scripts/status.sh
 ```
 
 Credentials still live outside the repo in `~/.tgcreds.json`.
+
+Add a command while the ship service is already running:
+
+```bash
+node ./bin/fleetmesh.js add-command temp --config ./ship.config.json --timeout 5
+```
+
+This updates `ship.config.json` and creates `scripts/temp.sh` if it does not
+exist. The running ship reloads config for every Telegram message, so no restart
+is needed.
+
+## Background Service
+
+Linux/systemd is the primary deployment target.
+
+For Romulus and Vulcan, use the Ansible playbook in `ansible/`. It installs
+FleetMesh as a systemd service named `fleetmesh.service` and enables it at boot.
+
+For a single Linux ship, generate a systemd unit locally:
+
+```bash
+sudo node ./bin/fleetmesh.js service install --config /etc/fleetmesh/ship.config.json --creds /etc/fleetmesh/.tgcreds.json --name fleetmesh
+```
+
+Then start it:
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable --now fleetmesh.service
+```
+
+Logs are available with:
+
+```bash
+journalctl -u fleetmesh -f
+```
 
 ## Telegram Run
 

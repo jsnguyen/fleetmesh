@@ -6,7 +6,6 @@ const config = {
   ship: {
     id: "sensor-ship",
     name: "Temperature Server",
-    tags: ["sensor", "home"],
   },
   telegram: {
     allowedChatIds: [1],
@@ -27,7 +26,7 @@ test("responds to fleet command", async () => {
   const agent = createShipAgent(config, { runner: fakeRunner() });
   const replies = await agent.handleText({ text: "/fleet", chatId: 1, userId: 2 });
   assert.match(replies[0].text, /Temperature Server/);
-  assert.match(replies[0].text, /sensor/);
+  assert.doesNotMatch(replies[0].text, /Tags/);
 });
 
 test("only matching target runs command", async () => {
@@ -37,10 +36,10 @@ test("only matching target runs command", async () => {
   assert.equal(runner.calls.length, 0);
 });
 
-test("tag target runs command", async () => {
+test("broadcast runs command", async () => {
   const runner = fakeRunner();
   const agent = createShipAgent(config, { runner });
-  const replies = await agent.handleText({ text: "/run tag:sensor temp", chatId: 1, userId: 2 });
+  const replies = await agent.handleText({ text: "/run temp", chatId: 1, userId: 2 });
   assert.equal(runner.calls.length, 1);
   assert.match(replies[0].text, /72.4 F/);
 });

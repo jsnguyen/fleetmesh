@@ -11,7 +11,7 @@ export function parseFleetCommand(text) {
   let command;
   let args;
 
-  if (rest[0]?.startsWith("@") || rest[0]?.startsWith("tag:")) {
+  if (rest[0]?.startsWith("@")) {
     target = rest[0];
     command = rest[1];
     args = rest.slice(2);

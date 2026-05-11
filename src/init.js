@@ -8,7 +8,6 @@ export async function initShip(options = {}) {
   const statusScriptPath = resolve(scriptsDir, "status.sh");
   const shipId = options.shipId ?? defaultShipId();
   const shipName = options.shipName ?? shipId;
-  const tags = options.tags ?? [];
 
   if (!options.force && await exists(configPath)) {
     throw new Error(`Config already exists: ${configPath}. Pass --force to overwrite it.`);
@@ -18,7 +17,6 @@ export async function initShip(options = {}) {
   await writeFile(configPath, `${JSON.stringify(buildShipConfig({
     shipId,
     shipName,
-    tags,
     botUsername: options.botUsername ?? "",
   }), null, 2)}\n`);
 
@@ -34,12 +32,11 @@ export async function initShip(options = {}) {
   };
 }
 
-export function buildShipConfig({ shipId, shipName, tags = [], botUsername = "" }) {
+export function buildShipConfig({ shipId, shipName, botUsername = "" }) {
   return {
     ship: {
       id: shipId,
       name: shipName,
-      tags,
     },
     telegram: {
       botUsername,

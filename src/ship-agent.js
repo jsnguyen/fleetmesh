@@ -11,33 +11,63 @@ export function createShipAgent(config, options = {}) {
   return {
     config,
     async handleText(message) {
-      if (!isAuthorized(config.telegram, message)) return [];
-
-      const parsed = parseFleetCommand(message.text);
-      if (!parsed) return [];
-
-      if (parsed.kind === "fleet") {
-        return [{
-          text: `${config.ship.name} (${config.ship.id}) online\nTags: ${(config.ship.tags ?? []).join(", ") || "none"}`,
-        }];
-      }
-
-      if (parsed.kind === "commands") {
-        return [{
-          text: formatCommandList(config),
-        }];
-      }
-
-      if (!targetMatchesShip(config.ship, parsed.target)) return [];
-
-      const command = config.commands?.[parsed.command];
-      if (!command) return [];
-
-      const result = await runner.run(command, parsed.args);
-      if (result.ok) return [formatCommandSuccess(config.ship, parsed.command, result.output)];
-      return [formatCommandFailure(config.ship, parsed.command, result)];
+      return handleTextWithConfig(config, runner, message);
     },
   };
+}
+
+export function createReloadingShipAgent(loadRuntimeConfig, options = {}) {
+  let lastConfig = options.initialConfig;
+  let lastConfigDir = options.initialConfigDir;
+
+  return {
+    get config() {
+      return lastConfig;
+    },
+    async getConfig() {
+      const runtime = await loadRuntimeConfig();
+      lastConfig = runtime.config;
+      lastConfigDir = runtime.configDir;
+      return runtime.config;
+    },
+    async handleText(message) {
+      const runtime = await loadRuntimeConfig();
+      lastConfig = runtime.config;
+      lastConfigDir = runtime.configDir;
+      const runner = options.runner ?? createScriptRunner({
+        configDir: lastConfigDir,
+      });
+      return handleTextWithConfig(runtime.config, runner, message);
+    },
+  };
+}
+
+async function handleTextWithConfig(config, runner, message) {
+  if (!isAuthorized(config.telegram, message)) return [];
+
+  const parsed = parseFleetCommand(message.text);
+  if (!parsed) return [];
+
+  if (parsed.kind === "fleet") {
+    return [{
+      text: `${config.ship.name} (${config.ship.id}) online`,
+    }];
+  }
+
+  if (parsed.kind === "commands") {
+    return [{
+      text: formatCommandList(config),
+    }];
+  }
+
+  if (!targetMatchesShip(config.ship, parsed.target)) return [];
+
+  const command = config.commands?.[parsed.command];
+  if (!command) return [];
+
+  const result = await runner.run(command, parsed.args);
+  if (result.ok) return [formatCommandSuccess(config.ship, parsed.command, result.output)];
+  return [formatCommandFailure(config.ship, parsed.command, result)];
 }
 
 function formatCommandList(config) {

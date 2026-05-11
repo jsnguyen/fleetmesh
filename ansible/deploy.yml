@@ -1,0 +1,117 @@
+---
+- name: Deploy FleetMesh ships
+  hosts: fleetmesh
+  become: false
+  gather_facts: true
+
+  tasks:
+    - name: Validate required Telegram variables
+      ansible.builtin.assert:
+        that:
+          - fleetmesh_telegram_user_id is defined
+          - fleetmesh_telegram_bot_token is defined
+          - fleetmesh_telegram_bot_token | length > 0
+          - fleetmesh_repo_url is defined
+          - fleetmesh_repo_url != "CHANGE_ME_TO_YOUR_FLEETMESH_GIT_REPO_URL"
+        fail_msg: "Set fleetmesh Telegram secrets with Ansible Vault before deploying."
+
+    - name: Check Node.js is available
+      ansible.builtin.command: node --version
+      register: fleetmesh_node_version
+      changed_when: false
+
+    - name: Validate Node.js version
+      ansible.builtin.assert:
+        that:
+          - (fleetmesh_node_version.stdout | regex_replace('^v([0-9]+).*', '\\1') | int) >= 20
+        fail_msg: "FleetMesh requires Node.js 20 or newer."
+
+    - name: Install git
+      ansible.builtin.package:
+        name: git
+        state: present
+      become: true
+
+    - name: Create FleetMesh directories
+      ansible.builtin.file:
+        path: "{{ item.path }}"
+        state: directory
+        owner: "{{ item.owner }}"
+        mode: "{{ item.mode }}"
+      loop:
+        - path: "{{ fleetmesh_config_dir }}"
+          owner: "{{ fleetmesh_service_user }}"
+          mode: "0750"
+        - path: "{{ fleetmesh_config_dir }}/scripts"
+          owner: "{{ fleetmesh_service_user }}"
+          mode: "0750"
+      become: true
+
+    - name: Clone FleetMesh repository
+      ansible.builtin.git:
+        repo: "{{ fleetmesh_repo_url }}"
+        dest: "{{ fleetmesh_app_dir }}"
+        version: "{{ fleetmesh_repo_version }}"
+        update: true
+        force: false
+      notify: Restart FleetMesh
+
+    - name: Install ship config
+      ansible.builtin.template:
+        src: ship.config.json.j2
+        dest: "{{ fleetmesh_config_dir }}/ship.config.json"
+        owner: "{{ fleetmesh_service_user }}"
+        mode: "0640"
+        force: false
+      become: true
+
+    - name: Install Telegram credentials
+      ansible.builtin.template:
+        src: tgcreds.json.j2
+        dest: "{{ fleetmesh_config_dir }}/.tgcreds.json"
+        owner: "{{ fleetmesh_service_user }}"
+        mode: "0600"
+      no_log: true
+      notify: Restart FleetMesh
+      become: true
+
+    - name: Install default status command
+      ansible.builtin.template:
+        src: status.sh.j2
+        dest: "{{ fleetmesh_config_dir }}/scripts/status.sh"
+        owner: "{{ fleetmesh_service_user }}"
+        mode: "0750"
+        force: false
+      become: true
+
+    - name: Install systemd unit
+      ansible.builtin.template:
+        src: fleetmesh.service.j2
+        dest: /etc/systemd/system/fleetmesh.service
+        owner: root
+        group: root
+        mode: "0644"
+      notify:
+        - Reload systemd
+        - Restart FleetMesh
+      become: true
+
+    - name: Enable and start FleetMesh
+      ansible.builtin.systemd:
+        name: fleetmesh.service
+        enabled: true
+        state: started
+        daemon_reload: true
+      become: true
+
+  handlers:
+    - name: Reload systemd
+      ansible.builtin.systemd:
+        daemon_reload: true
+      become: true
+
+    - name: Restart FleetMesh
+      ansible.builtin.systemd:
+        name: fleetmesh.service
+        state: restarted
+      become: true

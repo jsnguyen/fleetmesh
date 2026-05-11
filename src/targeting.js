@@ -10,6 +10,5 @@ export function isAuthorized(telegramConfig = {}, message) {
 export function targetMatchesShip(ship, target) {
   if (!target) return true;
   if (target.startsWith("@")) return ship.id === target.slice(1);
-  if (target.startsWith("tag:")) return (ship.tags ?? []).includes(target.slice(4));
   return false;
 }

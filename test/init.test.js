@@ -15,12 +15,10 @@ test("builds minimal ship config", () => {
   assert.deepEqual(buildShipConfig({
     shipId: "sensor-ship",
     shipName: "Temperature Server",
-    tags: ["sensor"],
   }), {
     ship: {
       id: "sensor-ship",
       name: "Temperature Server",
-      tags: ["sensor"],
     },
     telegram: {
       botUsername: "",
@@ -42,13 +40,11 @@ test("initializes config and status script", async () => {
     configPath,
     shipId: "sensor-ship",
     shipName: "Temperature Server",
-    tags: ["sensor", "server"],
   });
 
   const config = JSON.parse(await readFile(result.configPath, "utf8"));
   assert.equal(config.ship.id, "sensor-ship");
   assert.equal(config.ship.name, "Temperature Server");
-  assert.deepEqual(config.ship.tags, ["sensor", "server"]);
   assert.match(await readFile(result.statusScriptPath, "utf8"), /uptime/);
   assert.equal((await stat(result.statusScriptPath)).mode & 0o111, 0o111);
 });

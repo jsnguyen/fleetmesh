@@ -3,7 +3,8 @@ import { extname, resolve } from "node:path";
 
 export async function startTelegramPolling(agent, botToken) {
   let offset = 0;
-  console.log(`FleetMesh ship ${agent.config.ship.id} listening for Telegram commands.`);
+  const initialConfig = await resolveAgentConfig(agent);
+  console.log(`FleetMesh ship ${initialConfig.ship.id} listening for Telegram commands.`);
 
   for (;;) {
     const updates = await telegramRequest(botToken, "getUpdates", {
@@ -16,9 +17,10 @@ export async function startTelegramPolling(agent, botToken) {
       offset = Math.max(offset, update.update_id + 1);
       const message = update.message;
       if (!message?.text) continue;
+      const config = await resolveAgentConfig(agent);
 
       const replies = await agent.handleText({
-        text: stripBotSuffix(message.text, agent.config.telegram?.botUsername),
+        text: stripBotSuffix(message.text, config.telegram?.botUsername),
         chatId: message.chat.id,
         userId: message.from?.id,
       });
@@ -26,6 +28,11 @@ export async function startTelegramPolling(agent, botToken) {
       for (const reply of replies) await sendReply(botToken, message.chat.id, reply);
     }
   }
+}
+
+async function resolveAgentConfig(agent) {
+  if (typeof agent.getConfig === "function") return agent.getConfig();
+  return agent.config;
 }
 
 async function sendReply(botToken, chatId, reply) {

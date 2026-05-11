@@ -1,8 +1,7 @@
 {
   "ship": {
     "id": "sensor-ship",
-    "name": "Temperature Server",
-    "tags": ["sensor", "server", "home"]
+    "name": "Temperature Server"
   },
   "telegram": {
     "botUsername": ""
