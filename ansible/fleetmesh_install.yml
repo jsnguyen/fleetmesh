@@ -14,6 +14,7 @@
     fleetmesh_bot_username: "{{ fleetmesh_ship_id }}_ship_bot"
     fleetmesh_node_bin: /usr/bin/env node
     fleetmesh_telegram_user_id: ""
+    fleetmesh_telegram_chat_id: ""
     fleetmesh_bot_tokens: {}
     fleetmesh_telegram_bot_token: "{{ fleetmesh_bot_tokens[fleetmesh_ship_id] | default('') }}"
 
@@ -95,7 +96,8 @@
         content: |
           {
             "bot_token": "{{ fleetmesh_telegram_bot_token }}",
-            "user_id": {{ fleetmesh_telegram_user_id }}
+            "user_id": {{ fleetmesh_telegram_user_id }}{% if fleetmesh_telegram_chat_id | string | length > 0 %},
+            "chat_id": {{ fleetmesh_telegram_chat_id }}{% endif %}
           }
       no_log: true
       notify: Restart FleetMesh
@@ -164,4 +166,3 @@
         name: fleetmesh.service
         state: restarted
       become: true
-

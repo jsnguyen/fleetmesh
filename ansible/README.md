@@ -26,6 +26,7 @@ Vault contents:
 fleetmesh_repo_url: "git@github.com:YOUR_ORG_OR_USER/fleetmesh.git"
 fleetmesh_repo_version: main
 fleetmesh_telegram_user_id: 123456789
+fleetmesh_telegram_chat_id: -1001234567890
 fleetmesh_bot_tokens:
   romulus: "telegram-token-for-romulus"
   vulcan: "telegram-token-for-vulcan"

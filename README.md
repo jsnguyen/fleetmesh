@@ -62,6 +62,7 @@ Vault contents:
 fleetmesh_repo_url: "git@github.com:YOUR_ORG_OR_USER/fleetmesh.git"
 fleetmesh_repo_version: main
 fleetmesh_telegram_user_id: 123456789
+fleetmesh_telegram_chat_id: -1001234567890
 fleetmesh_bot_tokens:
   romulus: "telegram-token-for-romulus"
   vulcan: "telegram-token-for-vulcan"
@@ -107,6 +108,10 @@ In Telegram:
 /run status
 /run @romulus status
 ```
+
+To find the group chat id, temporarily run one bot, send a message in the group,
+and check `journalctl -u fleetmesh -f` if authorization fails. Telegram group ids
+are usually negative numbers, often starting with `-100`.
 
 ## Add A Command
 
