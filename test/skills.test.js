@@ -105,6 +105,48 @@ test("romulus temps skill fills missing rooms from stream data", async () => {
   assert.ok(result.stdout.indexOf("Living Room") < result.stdout.indexOf("Garage"));
 });
 
+test("romulus temps skill refreshes stale rooms from stream data", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "fleetmesh-skill-"));
+  const tempsPath = join(dir, "temps.json");
+  const streamPath = join(dir, "stream.sse");
+  await writeFile(tempsPath, JSON.stringify({
+    Bedroom: {
+      temp_f: 71.2,
+      humidity: 44,
+      time: "2026-05-11T01:00:00",
+    },
+    "Living Room": {
+      temp_f: 68.5,
+      humidity: 38,
+      time: "2026-05-10T23:00:00",
+    },
+    Garage: {
+      temp_f: 66,
+      humidity: null,
+      time: "2026-05-11T01:02:00",
+    },
+  }));
+  await writeFile(streamPath, `data: ${JSON.stringify({
+    "rtl_433_ch1": [
+      {
+        temp_f: 70.0,
+        humidity: 40,
+        time: "2026-05-11T01:03:00",
+      },
+    ],
+  })}\n\n`);
+
+  const result = await run("python3", ["skills/romulus/latest_temp.py"], {
+    FLEETMESH_TEMPS_URL: `file://${tempsPath}`,
+    FLEETMESH_TEMPS_STREAM_URL: `file://${streamPath}`,
+    FLEETMESH_TEMPS_STALE_SECONDS: "300",
+  });
+
+  assert.equal(result.exitCode, 0);
+  assert.match(result.stdout, /🛋️ Living Room\s+70\.0°F\s+40%/);
+  assert.doesNotMatch(result.stdout, /Living Room\s+68\.5°F/);
+});
+
 function run(command, args, env) {
   return new Promise((resolve, reject) => {
     const child = spawn(command, args, {

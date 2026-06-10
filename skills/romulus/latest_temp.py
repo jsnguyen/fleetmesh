@@ -55,7 +55,7 @@ def main() -> int:
         return 0
 
     readings_by_name = normalize_payload(payload)
-    if missing_display_rooms(readings_by_name):
+    if needs_stream_refresh(readings_by_name):
         stream_url = stream_fallback_url(url)
         if stream_url and stream_url != url:
             try:
@@ -194,6 +194,17 @@ def missing_display_rooms(readings_by_name: dict) -> list[str]:
     return [name for name in DISPLAY_ORDER if name not in readings_by_name]
 
 
+def stale_display_rooms(readings_by_name: dict) -> list[str]:
+    return [
+        name for name in DISPLAY_ORDER
+        if name in readings_by_name and is_stale(readings_by_name[name].get("time"))
+    ]
+
+
+def needs_stream_refresh(readings_by_name: dict) -> bool:
+    return bool(missing_display_rooms(readings_by_name) or stale_display_rooms(readings_by_name))
+
+
 def ordered_names(readings_by_name: dict) -> list[str]:
     known = [name for name in DISPLAY_ORDER if name in readings_by_name]
     extra = sorted(name for name in readings_by_name if name not in DISPLAY_ORDER)
@@ -271,12 +282,16 @@ def age_text(value: datetime) -> str:
 
 
 def freshness_icon(value: str | None) -> str:
+    return "🔴" if is_stale(value) else "🟢"
+
+
+def is_stale(value: str | None) -> bool:
     parsed = parse_time(value)
     if not parsed:
-        return "🔴"
+        return True
     now = datetime.now(parsed.tzinfo) if parsed.tzinfo else datetime.now()
     age_seconds = max(0, int((now - parsed).total_seconds()))
-    return "🟢" if age_seconds <= STALE_AFTER_SECONDS else "🔴"
+    return age_seconds > STALE_AFTER_SECONDS
 
 
 if __name__ == "__main__":
