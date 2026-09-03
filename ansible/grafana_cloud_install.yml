@@ -1,0 +1,179 @@
+---
+- name: Send SDR temperatures to Grafana Cloud
+  hosts: romulus
+  gather_facts: true
+
+  vars:
+    grafana_cloud_prometheus_url: ""
+    grafana_cloud_prometheus_username: ""
+    grafana_cloud_metrics_write_token: ""
+    fleetmesh_dir: "{{ ansible_facts.user_dir }}/fleetmesh"
+    sdr_temperature_url: http://127.0.0.1:8433/temps
+    sdr_temperature_exporter_port: 9765
+    sdr_temperature_exporter_user: "{{ ansible_facts.user_id }}"
+
+  tasks:
+    - name: Validate Grafana Cloud variables
+      ansible.builtin.assert:
+        that:
+          - ansible_facts.os_family == "Debian"
+          - grafana_cloud_prometheus_url | length > 0
+          - grafana_cloud_prometheus_username | length > 0
+          - grafana_cloud_metrics_write_token | length > 0
+        fail_msg: "Set Grafana Cloud Prometheus credentials in fleetmesh.vault.yml. This playbook supports Debian and Ubuntu hosts."
+      no_log: true
+
+    - name: Check SDR temperature exporter source
+      ansible.builtin.stat:
+        path: "{{ fleetmesh_dir }}/grafana/sdr_temperature_exporter.py"
+      register: sdr_temperature_exporter_source
+
+    - name: Require SDR temperature exporter source
+      ansible.builtin.assert:
+        that:
+          - sdr_temperature_exporter_source.stat.exists
+          - sdr_temperature_exporter_source.stat.isreg
+        fail_msg: "Update the FleetMesh checkout at {{ fleetmesh_dir }} before running this playbook."
+
+    - name: Install Grafana Alloy prerequisites
+      ansible.builtin.apt:
+        name:
+          - gnupg
+          - wget
+        state: present
+        update_cache: true
+      become: true
+
+    - name: Create APT keyring directory
+      ansible.builtin.file:
+        path: /etc/apt/keyrings
+        state: directory
+        mode: "0755"
+      become: true
+
+    - name: Install Grafana APT signing key
+      ansible.builtin.get_url:
+        url: https://apt.grafana.com/gpg-full.key
+        dest: /etc/apt/keyrings/grafana.asc
+        mode: "0644"
+      become: true
+
+    - name: Add Grafana APT repository
+      ansible.builtin.apt_repository:
+        repo: "deb [signed-by=/etc/apt/keyrings/grafana.asc] https://apt.grafana.com stable main"
+        filename: grafana
+        state: present
+      become: true
+
+    - name: Install Grafana Alloy
+      ansible.builtin.apt:
+        name: alloy
+        state: present
+        update_cache: true
+      become: true
+
+    - name: Install SDR temperature exporter
+      ansible.builtin.copy:
+        src: "{{ fleetmesh_dir }}/grafana/sdr_temperature_exporter.py"
+        dest: /usr/local/lib/sdr_temperature_exporter.py
+        owner: root
+        group: root
+        mode: "0755"
+        remote_src: true
+      notify: Restart SDR temperature exporter
+      become: true
+
+    - name: Install SDR temperature exporter service
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/sdr-temperature-exporter.service
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          [Unit]
+          Description=SDR temperature Prometheus exporter
+          After=network-online.target
+          Wants=network-online.target
+
+          [Service]
+          Type=simple
+          User={{ sdr_temperature_exporter_user }}
+          Environment=SDR_TEMPS_URL={{ sdr_temperature_url }}
+          Environment=SDR_TEMPS_EXPORTER_PORT={{ sdr_temperature_exporter_port }}
+          ExecStart=/usr/bin/python3 /usr/local/lib/sdr_temperature_exporter.py
+          Restart=always
+          RestartSec=5
+          NoNewPrivileges=true
+          PrivateTmp=true
+          ProtectHome=true
+
+          [Install]
+          WantedBy=multi-user.target
+      notify:
+        - Reload systemd
+        - Restart SDR temperature exporter
+      become: true
+
+    - name: Configure Grafana Alloy
+      ansible.builtin.copy:
+        dest: /etc/alloy/config.alloy
+        owner: root
+        group: alloy
+        mode: "0640"
+        content: |
+          prometheus.remote_write "grafana_cloud" {
+            external_labels = {
+              ship = "{{ inventory_hostname }}",
+            }
+
+            endpoint {
+              url = {{ grafana_cloud_prometheus_url | to_json }}
+
+              basic_auth {
+                username = {{ grafana_cloud_prometheus_username | to_json }}
+                password = {{ grafana_cloud_metrics_write_token | to_json }}
+              }
+            }
+          }
+
+          prometheus.scrape "sdr_temperatures" {
+            targets = [{ "__address__" = "127.0.0.1:{{ sdr_temperature_exporter_port }}" }]
+            scrape_interval = "60s"
+            forward_to = [prometheus.remote_write.grafana_cloud.receiver]
+          }
+      no_log: true
+      notify: Restart Alloy
+      become: true
+
+    - name: Enable and start SDR temperature exporter
+      ansible.builtin.systemd:
+        name: sdr-temperature-exporter.service
+        enabled: true
+        state: started
+        daemon_reload: true
+      become: true
+
+    - name: Enable and start Grafana Alloy
+      ansible.builtin.systemd:
+        name: alloy.service
+        enabled: true
+        state: started
+      become: true
+
+  handlers:
+    - name: Reload systemd
+      ansible.builtin.systemd:
+        daemon_reload: true
+      become: true
+
+    - name: Restart SDR temperature exporter
+      ansible.builtin.systemd:
+        name: sdr-temperature-exporter.service
+        state: restarted
+      become: true
+
+    - name: Restart Alloy
+      ansible.builtin.systemd:
+        name: alloy.service
+        state: restarted
+      become: true

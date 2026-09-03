@@ -104,3 +104,75 @@ Update only one ship:
 ```bash
 ansible-playbook -i /path/to/inventory.ini fleetmesh_update.yml -e @fleetmesh.vault.yml --ask-vault-pass --limit romulus
 ```
+
+## Grafana temperatures
+
+`grafana_install.yml` installs Grafana on `romulus`, installs the SQLite data
+source plugin, and provisions the local SDR temperature database as `SDR
+Temperatures`. It does not provision a dashboard, so the first dashboard can be
+created and refined in Grafana without an Ansible change. Its service can see
+the home directory read-only, but filesystem ACLs grant Grafana access only to
+the temperature database path.
+
+Add an administrator password to the same vault:
+
+```yaml
+grafana_admin_password: "use-a-unique-long-password"
+```
+
+The expected temperature database is `~/sdr/sdr/temps.db`. Override it in the
+vault when yours lives elsewhere:
+
+```yaml
+grafana_temperature_db_path: "/absolute/path/to/temps.db"
+```
+
+Install Grafana:
+
+```bash
+ansible-playbook -i /path/to/inventory.ini grafana_install.yml -e @fleetmesh.vault.yml --ask-vault-pass
+```
+
+After the playbook finishes, open `http://romulus:3000` and sign in with the
+vault credentials. The `SDR Temperatures` datasource is ready to query.
+
+## Grafana Cloud temperatures
+
+`grafana_cloud_install.yml` keeps the local Grafana setup intact and sends new
+temperature readings from `romulus` to Grafana Cloud every minute. It installs
+Grafana Alloy and a loopback-only Prometheus exporter that reads the existing
+temperature server.
+
+In Grafana Cloud, open your stack's Prometheus details to get the remote-write
+URL and username. Create an access-policy token that can write metrics, then
+add all three values to the vault:
+
+```yaml
+grafana_cloud_prometheus_url: "https://prometheus-...grafana.net/api/prom/push"
+grafana_cloud_prometheus_username: "YOUR_METRICS_INSTANCE_ID"
+grafana_cloud_metrics_write_token: "YOUR_ACCESS_POLICY_TOKEN"
+```
+
+Push the FleetMesh changes and update Romulus first, so the exporter is present
+in its `~/fleetmesh` checkout:
+
+```bash
+ansible-playbook -i /path/to/inventory.ini fleetmesh_update.yml -e @fleetmesh.vault.yml --ask-vault-pass --limit romulus
+```
+
+Install the Cloud bridge:
+
+```bash
+ansible-playbook -i /path/to/inventory.ini grafana_cloud_install.yml -e @fleetmesh.vault.yml --ask-vault-pass
+```
+
+After one minute, create panels in Grafana Cloud with these metric names:
+
+```text
+sdr_temperature_fahrenheit
+sdr_humidity_percent
+sdr_temperature_reading_age_seconds
+```
+
+Each metric has `room` and `ship` labels. The Cloud bridge starts collecting new
+points after installation; it does not copy the existing SQLite history.

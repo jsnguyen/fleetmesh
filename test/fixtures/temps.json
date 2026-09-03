@@ -1,0 +1,17 @@
+{
+  "Bedroom": {
+    "temp_f": 71.2,
+    "humidity": 44,
+    "time": "2026-09-02T12:00:00"
+  },
+  "Living Room": {
+    "temp_f": 70.0,
+    "humidity": 40,
+    "time": "2026-09-02T12:01:00"
+  },
+  "Garage": {
+    "temp_f": 66.0,
+    "humidity": null,
+    "time": "2026-09-02T12:02:00"
+  }
+}

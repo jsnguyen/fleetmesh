@@ -1,0 +1,197 @@
+---
+- name: Install Grafana for SDR temperatures
+  hosts: romulus
+  gather_facts: true
+
+  vars:
+    grafana_admin_user: admin
+    grafana_admin_password: ""
+    grafana_temperature_db_path: "{{ ansible_facts.user_dir }}/sdr/sdr/temps.db"
+    grafana_sqlite_plugin: frser-sqlite-datasource
+
+  tasks:
+    - name: Validate Grafana variables
+      ansible.builtin.assert:
+        that:
+          - ansible_facts.os_family == "Debian"
+          - grafana_admin_password | length > 0
+        fail_msg: "Set grafana_admin_password in fleetmesh.vault.yml. This playbook supports Debian and Ubuntu hosts."
+
+    - name: Check temperature database path
+      ansible.builtin.stat:
+        path: "{{ grafana_temperature_db_path }}"
+      register: grafana_temperature_db
+
+    - name: Require temperature database
+      ansible.builtin.assert:
+        that:
+          - grafana_temperature_db.stat.exists
+          - grafana_temperature_db.stat.isreg
+        fail_msg: "Temperature database not found at {{ grafana_temperature_db_path }}. Set grafana_temperature_db_path in fleetmesh.vault.yml."
+
+    - name: Install Grafana prerequisites
+      ansible.builtin.apt:
+        name:
+          - acl
+          - apt-transport-https
+          - gnupg
+          - wget
+        state: present
+        update_cache: true
+      become: true
+
+    - name: Create APT keyring directory
+      ansible.builtin.file:
+        path: /etc/apt/keyrings
+        state: directory
+        mode: "0755"
+      become: true
+
+    - name: Install Grafana APT signing key
+      ansible.builtin.get_url:
+        url: https://apt.grafana.com/gpg-full.key
+        dest: /etc/apt/keyrings/grafana.asc
+        mode: "0644"
+      become: true
+
+    - name: Add Grafana APT repository
+      ansible.builtin.apt_repository:
+        repo: "deb [signed-by=/etc/apt/keyrings/grafana.asc] https://apt.grafana.com stable main"
+        filename: grafana
+        state: present
+      become: true
+
+    - name: Install Grafana
+      ansible.builtin.apt:
+        name: grafana
+        state: present
+        update_cache: true
+      become: true
+
+    - name: Stop Grafana until initial configuration is complete
+      ansible.builtin.systemd:
+        name: grafana-server.service
+        state: stopped
+      become: true
+
+    - name: Install SQLite data source plugin
+      ansible.builtin.command:
+        argv:
+          - grafana
+          - cli
+          - plugins
+          - install
+          - "{{ grafana_sqlite_plugin }}"
+        creates: "/var/lib/grafana/plugins/{{ grafana_sqlite_plugin }}/plugin.json"
+      notify: Restart Grafana
+      become: true
+
+    - name: Allow Grafana to traverse the temperature database path
+      ansible.builtin.command:
+        argv:
+          - setfacl
+          - --modify
+          - "u:grafana:--x"
+          - "{{ item }}"
+      loop:
+        - "{{ ansible_facts.user_dir }}"
+        - "{{ grafana_temperature_db_path | dirname | dirname | dirname }}"
+        - "{{ grafana_temperature_db_path | dirname | dirname }}"
+        - "{{ grafana_temperature_db_path | dirname }}"
+      changed_when: false
+      become: true
+
+    - name: Allow Grafana to read temperature database files
+      ansible.builtin.command:
+        argv:
+          - setfacl
+          - --modify
+          - "u:grafana:r--"
+          - "{{ item }}"
+      loop:
+        - "{{ grafana_temperature_db_path }}"
+        - "{{ grafana_temperature_db_path }}-wal"
+        - "{{ grafana_temperature_db_path }}-shm"
+      failed_when: false
+      changed_when: false
+      become: true
+
+    - name: Allow Grafana to read future SQLite WAL files
+      ansible.builtin.command:
+        argv:
+          - setfacl
+          - --default
+          - --modify
+          - "u:grafana:r--"
+          - "{{ grafana_temperature_db_path | dirname }}"
+      changed_when: false
+      become: true
+
+    - name: Create Grafana systemd override directory
+      ansible.builtin.file:
+        path: /etc/systemd/system/grafana-server.service.d
+        state: directory
+        mode: "0755"
+      become: true
+
+    - name: Allow Grafana to access approved home directory paths
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/grafana-server.service.d/temperatures.conf
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          [Service]
+          ProtectHome=read-only
+      notify: Restart Grafana
+      become: true
+
+    - name: Provision SDR temperature data source
+      ansible.builtin.copy:
+        dest: /etc/grafana/provisioning/datasources/sdr-temperatures.yml
+        owner: root
+        group: grafana
+        mode: "0640"
+        content: |
+          apiVersion: 1
+          datasources:
+            - name: SDR Temperatures
+              uid: sdr-temperatures
+              type: frser-sqlite-datasource
+              access: proxy
+              editable: false
+              jsonData:
+                path: {{ grafana_temperature_db_path }}
+      notify: Restart Grafana
+      become: true
+
+    - name: Set Grafana administrator credentials
+      ansible.builtin.ini_file:
+        path: /etc/grafana/grafana.ini
+        section: security
+        option: "{{ item.option }}"
+        value: "{{ item.value }}"
+        mode: "0640"
+      loop:
+        - option: admin_user
+          value: "{{ grafana_admin_user }}"
+        - option: admin_password
+          value: "{{ grafana_admin_password }}"
+      no_log: true
+      notify: Restart Grafana
+      become: true
+
+    - name: Enable and start Grafana
+      ansible.builtin.systemd:
+        name: grafana-server.service
+        enabled: true
+        state: started
+        daemon_reload: true
+      become: true
+
+  handlers:
+    - name: Restart Grafana
+      ansible.builtin.systemd:
+        name: grafana-server.service
+        state: restarted
+      become: true
